@@ -20,6 +20,8 @@ Step 2B — Option B: role activation (becoming a bridge).
 
 Outputs: window_scores_B, panel_B, contacts_B, sources_B
 """
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -29,7 +31,9 @@ from common import log, load, save, reference_years, in_window, blau_from_counts
 
 # ── similarity layer ─────────────────────────────────────────────────────────
 def _read_ids(path):
-    """Paper ids as int64; accepts 123, W123 or https://openalex.org/W123."""
+    """Paper ids as int64: an .npy of ints, or text lines like 123, W123, https://openalex.org/W123."""
+    if str(path).endswith(".npy"):
+        return np.load(path).astype(np.int64)
     s = pd.read_csv(path, header=None, names=["id"], dtype=str).id.str.strip()
     return s.str.extract(r"(\d+)$", expand=False).astype(np.int64).values
 
@@ -212,9 +216,10 @@ def main():
     ws = windowed_blau_collab(pairs, home, starts)
     ws = add_states(ws, "blau_collab", home)
 
-    use_sim = bool(C.EMBEDDING_FILES)
+    use_sim = bool(C.EMBEDDING_FILES) and all(Path(f[0]).exists() for f in C.EMBEDDING_FILES)
     if C.BRIDGE_DEF in ("liaison", "either") and not use_sim:
-        raise SystemExit(f"BRIDGE_DEF={C.BRIDGE_DEF!r} needs EMBEDDING_FILES in config.py")
+        raise SystemExit(f"BRIDGE_DEF={C.BRIDGE_DEF!r} needs embeddings: run step 0b "
+                         f"(00b_collect_embeddings.py) or set EMBEDDING_FILES")
     if use_sim:
         log("Computing windowed B_sim against a fixed embedding index")
         bs = windowed_blau_sim(events, load("paper_fields"), papers, starts, ws[["author", "s"]])

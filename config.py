@@ -68,7 +68,7 @@ EXPAND_NEIGHBOURS = True   # also give window scores to population co-authors of
                            # authors (needed for Option B exposure: is my co-author a bridge?)
 
 # ── WINDOWS (one reference year T0 per year; IW/AW slide by 1 year) ────────────
-WINDOW = 3                 # IW = [T0-3, T0), AW = [T0, T0+3)
+WINDOW = 5                 # IW = [T0-5, T0), AW = [T0, T0+5)  (as inferred for Venturini et al.)
 T0_MIN, T0_MAX = 1995, 2018
 MIN_AW_PAPERS = 1
 
@@ -88,12 +88,13 @@ BRIDGE_DEF = "either"      # "either": high B_collab OR high B_sim (any non-coor
 CANDIDATE_HOMES_B = ["CS"]
 
 # Similarity layer (required for "either" / "liaison").
-# One or more (embeddings .npy, ids .txt) pairs with rows in the same order; the
-# per-discipline outputs of merge-embeddings.py can be listed directly. Duplicate
-# paper ids across files are dropped. Files are memory-mapped.
-EMBEDDING_FILES = [
-    # ("/N/slate/gpanayio/.../CS/embeddings.npy", "/N/slate/gpanayio/.../CS/ids.txt"),
-]
+# Step 0b gathers the SPECTER2 chunks (embeddings_<k>.npy + ids_<k>.txt) into one
+# array holding only the papers kept by step 0; step 2B reads that array.
+EMBEDDING_CHUNK_DIR = _env("EMBEDDING_CHUNK_DIR", "/N/scratch/gpanayio/embeddings")
+EMB_NPY = OUT_DIR / "embeddings_needed.npy"
+EMB_IDS = OUT_DIR / "embeddings_needed_ids.npy"
+EMB_DTYPE = "float16"      # halves disk use; vectors are cast to float32 before search
+EMBEDDING_FILES = [(str(EMB_NPY), str(EMB_IDS))]
 if _env("EMBEDDING_FILES", None):  # override: "a.npy,a_ids.txt;b.npy,b_ids.txt"
     EMBEDDING_FILES = [tuple(p.split(",")) for p in _env("EMBEDDING_FILES", "").split(";")]
 SIM_TOPK = 20

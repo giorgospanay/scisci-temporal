@@ -4,8 +4,8 @@
 
 We adapt the design of Venturini et al. (*Sci. Rep.* 14:1258, 2024) from topic switches to
 interdisciplinarity. For every reference year T0 (1995–2018, one per year), the **interaction
-window** IW = [T0−3, T0) is where we observe who an author collaborates with. The **activation
-window** AW = [T0, T0+3) is where we check whether they "turn active". Windows slide by one year,
+window** IW = [T0−5, T0) is where we observe who an author collaborates with. The **activation
+window** AW = [T0, T0+5) is where we check whether they "turn active". Windows slide by one year,
 so consecutive T0s overlap. Results are aggregated over T0 with bootstrap CIs, and the regression
 clusters by author.
 
@@ -26,6 +26,7 @@ We define "active" in two ways. Both are built around CS authors.
 
 | What | Where |
 |---|---|
+| SPECTER2 chunks (input) | `/N/scratch/gpanayio/embeddings/` |
 | Works TSV (input) | `/N/scratch/gpanayio/openalex-pre/works_core+...+mesh.tsv` |
 | Large intermediates | `/N/scratch/gpanayio/scisci-temporal/` (scratch is purged after inactivity) |
 | Code, logs, results | `/N/slate/gpanayio/scisci-temporal/` |
@@ -42,6 +43,7 @@ are reconstructed for CS-home authors plus their population co-authors (`FOCUS_H
 | Step | Script | Slurm | Resources | What it does |
 |---|---|---|---|---|
 | 0 | `00_extract_papers.py` | `00-extract-papers.sh` | 1 CPU, 32 GB | Two passes over the works TSV. Writes `papers.tsv` (id, year, authors, disciplines) and citation counts for every kept paper |
+| 0b | `00b_collect_embeddings.py` | `00b-collect-embeddings.sh` | 64 GB | Reads the SPECTER2 chunks (`embeddings_<k>.npy` + `ids_<k>.txt`) and writes one float16 array holding only the papers from step 0, without duplicates. Needed for Option B only |
 | 1 | `01_build_events.py` | `01-build-events.sh` | 256 GB | Home disciplines, population, co-authorship **event list** (one row per joint paper, so any window is a year filter), per-author field activity by year |
 | 2A | `02_option_a_field_entry.py` | `02-option-a.sh` | 128 GB | Candidate × T0 panel for each CS→X, plus the contact and source tables |
 | 2B | `03_option_b_role_activation.py` | `03-option-b.sh` | 16 CPUs, 256 GB | Windowed B_collab and B_sim, coordinator/bridge states, same tables |
@@ -52,13 +54,15 @@ are reconstructed for CS-home authors plus their population co-authors (`FOCUS_H
 ```bash
 cd /N/slate/gpanayio/scisci-temporal
 bash slurm/setup_env.sh               # once: pyarrow, statsmodels, faiss-cpu, ...
-# edit config.py: EMBEDDING_FILES (and MIN_CONCEPT_SCORE if filter-papers.py used another value)
+# edit config.py: MIN_CONCEPT_SCORE if filter-papers.py used another value
 bash slurm/submit_all.sh              # whole chain with dependencies
 bash slurm/submit_all.sh 1            # skip step 0 if papers.tsv already exists
 SKIP_B=1 bash slurm/submit_all.sh     # Option A only (no embeddings needed)
 ```
 
-Steps 2A and 2B run in parallel after step 1.
+Step 0b runs after step 0 and in parallel with step 1. It is skipped when
+`embeddings_needed.npy` already exists, unless you set `REDO_EMB=1`. Steps 2A and 2B run in
+parallel after step 1, and 2B also waits for 0b.
 
 ### B_sim per window
 
@@ -66,9 +70,8 @@ Each author's window centroid (the mean embedding of their papers in that window
 against **one fixed index** of all paper embeddings, so nothing is re-embedded and no
 similarity graph is rebuilt. Of the nearest papers, the author's own papers and papers
 published after the window are dropped. The top 20 that remain give a Blau index over their
-disciplines. `EMBEDDING_FILES` takes one or more `(embeddings.npy, ids.txt)` pairs, such as the
-per-discipline outputs of `merge-embeddings.py`. The files are memory-mapped and duplicate
-papers across files are dropped.
+disciplines. Step 0b builds the index input from the chunk folder. `EMBEDDING_FILES` can instead point to
+other `(embeddings.npy, ids)` pairs.
 
 - Up to 5M vectors: exact faiss index.
 - Above that: compressed IVF-PQ index (about 64 bytes per paper).
@@ -123,6 +126,7 @@ two embedding files. Point the pipeline at it with environment variables:
 export WORKS_FILE=/tmp/toy/works.tsv OUT_DIR=/tmp/toy/out RESULTS_DIR=/tmp/toy/results \
        MIN_FIELD_PAPERS_PER_WINDOW=300 \
        EMBEDDING_FILES="/tmp/toy/emb_0.npy,/tmp/toy/emb_0_ids.txt;/tmp/toy/emb_1.npy,/tmp/toy/emb_1_ids.txt"
+# (or set EMBEDDING_CHUNK_DIR to a folder of embeddings_<k>.npy / ids_<k>.txt and run 00b_collect_embeddings.py)
 python 00_extract_papers.py && python 01_build_events.py
 python 02_option_a_field_entry.py && python 04_analyze.py A
 python 03_option_b_role_activation.py && python 04_analyze.py B
