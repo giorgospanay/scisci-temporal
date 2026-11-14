@@ -24,7 +24,6 @@ We define "active" in two ways. Both are built around CS authors.
 
 ## Data
 
-<<<<<<< HEAD
 | What | Where |
 |---|---|
 | SPECTER2 chunks (input) | `/N/scratch/gpanayio/embeddings/` |
@@ -32,8 +31,6 @@ We define "active" in two ways. Both are built around CS authors.
 | Large intermediates | `/N/scratch/gpanayio/scisci-temporal/` (scratch is purged after inactivity) |
 | Code, logs, results | `/N/slate/gpanayio/scisci-temporal/` |
 
-=======
->>>>>>> 6e3e7750b2e70d8cdd3f4ad1ecaeea91e6486885
 Papers are articles from 1990–2022 with at most 30 authors. Each paper is tagged with every one
 of the seven level-0 concepts it has at score ≥ 0.3, as in `filter-papers.py`. A paper with none
 of the seven is dropped. An author's **home** is the discipline with the largest fractional

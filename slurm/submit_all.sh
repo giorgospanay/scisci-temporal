@@ -13,7 +13,7 @@ mkdir -p logs results
 FROM=${1:-0}
 
 # embeddings for Option B: collected once by step 0b (re-run with REDO_EMB=1)
-EMB=$(python -c "import config as C; print(C.EMB_NPY)" 2>/dev/null || echo "")
+EMB=$(python -c "import config as C; print(C.EMB_IDS)" 2>/dev/null || echo "")  # written only when 0b completes
 
 dep() { [ -n "$1" ] && echo "--dependency=afterok:$1" || true; }
 
@@ -25,6 +25,9 @@ if [ "$FROM" -le 1 ]; then
   J1=$(sbatch --parsable $(dep "$J0") slurm/01-build-events.sh); echo "step 1: $J1"
 fi
 J0B=""
+if [ -n "${REDO_EMB:-}" ] && [ -n "$EMB" ]; then
+  rm -f "$EMB" "$(dirname "$EMB")/embeddings_selection.npz" "$(dirname "$EMB")/embeddings_progress.txt"
+fi
 if [ -z "${SKIP_B:-}" ] && { [ -n "${REDO_EMB:-}" ] || [ ! -f "$EMB" ] || [ "$FROM" -le 0 ]; }; then
   J0B=$(sbatch --parsable $(dep "$J0") slurm/00b-collect-embeddings.sh); echo "step 0b: $J0B"
 fi

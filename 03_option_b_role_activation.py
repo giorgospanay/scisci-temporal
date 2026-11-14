@@ -216,7 +216,7 @@ def main():
     ws = windowed_blau_collab(pairs, home, starts)
     ws = add_states(ws, "blau_collab", home)
 
-    use_sim = bool(C.EMBEDDING_FILES) and all(Path(f[0]).exists() for f in C.EMBEDDING_FILES)
+    use_sim = bool(C.EMBEDDING_FILES) and all(Path(f[1]).exists() for f in C.EMBEDDING_FILES)  # ids file = complete
     if C.BRIDGE_DEF in ("liaison", "either") and not use_sim:
         raise SystemExit(f"BRIDGE_DEF={C.BRIDGE_DEF!r} needs embeddings: run step 0b "
                          f"(00b_collect_embeddings.py) or set EMBEDDING_FILES")
